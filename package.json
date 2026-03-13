@@ -1,0 +1,14 @@
+{
+  "name": "linguaflow",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "db:push": "cd apps/web && npx prisma db push",
+    "db:seed": "cd apps/web && npx prisma db seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0"
+  }
+}

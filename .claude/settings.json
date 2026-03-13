@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma generate --schema=../../prisma/schema.prisma)",
+      "Bash(\"d:/Downloads/coding project/LangAI/prisma/schema.prisma\":*)",
+      "Bash(npx prisma db push --schema=../../prisma/schema.prisma)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx prisma db push --schema=../../prisma/schema.prisma)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx ts-node --compiler-options '{\"\"module\"\":\"\"CommonJS\"\",\"\"esModuleInterop\"\":true}' ../../prisma/seed-wrapper.ts)",
+      "Bash(curl -s -o /dev/null -w \" %{http_code}\" http://localhost:3001/register)",
+      "Bash(find \"d:/Downloads/coding project/LangAI/apps/web/app/\\(auth\\)\" -type f)",
+      "Bash(curl -sv http://localhost:3001/login)",
+      "Bash(curl -sv http://localhost:3001/register)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s http://localhost:3002/)",
+      "Bash(curl -s http://localhost:3003/)",
+      "Bash(curl -s http://localhost:3004/)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx next dev -p 3002)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx next dev -p 3333)",
+      "Bash(sed -i 's|NEXTAUTH_URL=\"\"http://localhost:3001\"\"|NEXTAUTH_URL=\"\"http://localhost:3333\"\"|' \"d:/Downloads/coding project/LangAI/apps/web/.env.local\")",
+      "Bash(curl -s -o /dev/null -w \"/ => %{http_code}\\\\n\" http://localhost:3333/)",
+      "Bash(curl -s -o /dev/null -w \"/login => %{http_code}\\\\n\" http://localhost:3333/login)",
+      "Bash(curl -s -o /dev/null -w \"/register => %{http_code}\\\\n\" http://localhost:3333/register)",
+      "Bash(curl -s -X POST http://localhost:3333/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"name\"\":\"\"Test User\"\",\"\"email\"\":\"\"test@example.com\"\",\"\"password\"\":\"\"password123\"\"}')",
+      "Bash(curl -s http://localhost:3333/api/lessons)",
+      "Bash(find \"d:/Downloads/coding project/LangAI/apps/web/app/\\(features\\)\" -type f)",
+      "Bash(DATABASE_URL=\"file:./dev.db\" npx tsc --noEmit)",
+      "Bash(grep -l \"pendingXP\\\\|newAchievement\\\\|showLevelUp\" \"d:/Downloads/coding project/LangAI/apps/web\"/**/*.ts*)",
+      "Bash(grep -n \"TODO\\\\|FIXME\\\\|placeholder\\\\|PLACEHOLDER\" \"d:/Downloads/coding project/LangAI/apps/web/app/\\(features\\)/\"*/*.tsx)"
+    ]
+  }
+}

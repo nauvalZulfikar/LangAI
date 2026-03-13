@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String?
+  avatar           String?
+  password         String?
+  createdAt        DateTime  @default(now())
+  nativeLanguage   String    @default("English")
+  targetLanguage   String    @default("Spanish")
+  currentLevel     String    @default("A1")
+  xpTotal          Int       @default(0)
+  streakCurrent    Int       @default(0)
+  streakLongest    Int       @default(0)
+  lastActivityAt   DateTime?
+  dailyGoalMinutes Int       @default(10)
+
+  settings           UserSettings?
+  lessonProgress     UserLessonProgress[]
+  flashcards         UserFlashcard[]
+  achievements       UserAchievement[]
+  conversations      AIConversation[]
+  writingEntries     WritingEntry[]
+  dailyChallenges    UserDailyChallenge[]
+  leaderboardEntries Leaderboard[]
+  accounts           Account[]
+  sessions           Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserSettings {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  notificationsEnabled Boolean @default(true)
+  reminderTime         String  @default("20:00")
+  theme                String  @default("light")
+  uiLanguage           String  @default("English")
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Lesson {
+  id               String @id @default(cuid())
+  title            String
+  description      String
+  level            String
+  unit             Int
+  order            Int
+  type             String
+  estimatedMinutes Int    @default(10)
+  xpReward         Int    @default(30)
+  content          String
+
+  flashcards   Flashcard[]
+  userProgress UserLessonProgress[]
+}
+
+model UserLessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  status      String    @default("NOT_STARTED")
+  score       Int       @default(0)
+  completedAt DateTime?
+  attempts    Int       @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model Flashcard {
+  id       String  @id @default(cuid())
+  front    String
+  back     String
+  audioUrl String?
+  imageUrl String?
+  lessonId String
+  language String
+  tags     String  @default("")
+
+  lesson         Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  userFlashcards UserFlashcard[]
+}
+
+model UserFlashcard {
+  id            String    @id @default(cuid())
+  userId        String
+  flashcardId   String
+  interval      Int       @default(1)
+  easeFactor    Float     @default(2.5)
+  dueDate       DateTime  @default(now())
+  repetitions   Int       @default(0)
+  lastReviewed  DateTime?
+  correctStreak Int       @default(0)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flashcardId])
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  title       String
+  description String
+  icon        String
+  xpReward    Int
+  condition   String
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  language  String
+  scenario  String
+  messages  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WritingEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  content    String
+  language   String
+  aiFeedback String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DailyChallenge {
+  id       String   @id @default(cuid())
+  date     DateTime @unique
+  type     String
+  content  String
+  xpReward Int      @default(60)
+
+  userChallenges UserDailyChallenge[]
+}
+
+model UserDailyChallenge {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  completedAt DateTime @default(now())
+  score       Int      @default(0)
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+}
+
+model Leaderboard {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  xpEarned  Int      @default(0)
+  rank      Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
