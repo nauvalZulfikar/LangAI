@@ -1,0 +1,80 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/web
+
+      - name: Build Next.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run build
+        working-directory: apps/web
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 2222
+          script: |
+            set -e
+
+            # Setup app directory
+            mkdir -p /var/www/langai/apps/web
+            cd /var/www/langai
+
+            # Pull latest code
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/nauvalZulfikar/LangAI.git .
+            else
+              git pull origin main
+            fi
+
+            # Install dependencies
+            cd apps/web
+            npm ci --production=false
+
+            # Write env file
+            cat > .env.production << 'ENVEOF'
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            ENVEOF
+
+            # Build
+            npm run build
+
+            # Run DB migrations
+            npx prisma migrate deploy || npx prisma db push
+
+            # Restart PM2
+            pm2 describe langai > /dev/null 2>&1 && pm2 restart langai || pm2 start ecosystem.config.js
+
+            # Save PM2 process list
+            pm2 save
+
+            echo "Deploy successful!"
