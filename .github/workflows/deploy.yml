@@ -26,9 +26,10 @@ jobs:
       - name: Build Next.js
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_URL: https://linguaflow.aureonforge.com
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NODE_ENV: production
         run: npm run build
         working-directory: apps/web
 
@@ -39,12 +40,12 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 2222
+          envs: DATABASE_URL,NEXTAUTH_URL,NEXTAUTH_SECRET,OPENAI_API_KEY
           script: |
             set -e
 
             # Setup app directory
-            mkdir -p /var/www/langai/apps/web
-            cd /var/www/langai
+            cd /var/www/langai 2>/dev/null || (mkdir -p /var/www/langai && cd /var/www/langai)
 
             # Pull latest code
             if [ ! -d ".git" ]; then
@@ -53,26 +54,28 @@ jobs:
               git pull origin main
             fi
 
+            # Write env file (envs passed via appleboy envs param)
+            cat > apps/web/.env.production << EOF
+            DATABASE_URL=${DATABASE_URL}
+            NEXTAUTH_URL=${NEXTAUTH_URL}
+            NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+            OPENAI_API_KEY=${OPENAI_API_KEY}
+            NODE_ENV=production
+            EOF
+
             # Install dependencies
             cd apps/web
             npm ci --production=false
 
-            # Write env file
-            cat > .env.production << 'ENVEOF'
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
-            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            ENVEOF
+            # Run DB migrations
+            npx prisma db push
 
             # Build
             npm run build
 
-            # Run DB migrations
-            npx prisma migrate deploy || npx prisma db push
-
             # Restart PM2
-            pm2 describe langai > /dev/null 2>&1 && pm2 restart langai || pm2 start ecosystem.config.js
+            cd /var/www/langai
+            pm2 describe langai > /dev/null 2>&1 && pm2 restart langai || pm2 start ecosystem.config.js --env production
 
             # Save PM2 process list
             pm2 save
