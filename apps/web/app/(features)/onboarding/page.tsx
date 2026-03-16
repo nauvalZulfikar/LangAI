@@ -6,8 +6,8 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
-const LANGUAGES = ['Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Mandarin', 'Korean'];
-const NATIVE_LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Arabic', 'Russian', 'Hindi'];
+const LANGUAGES = ['English', 'Indonesian', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Mandarin', 'Korean'];
+const NATIVE_LANGUAGES = ['English', 'Indonesian', 'Spanish', 'French', 'German', 'Portuguese', 'Arabic', 'Russian', 'Hindi'];
 const GOALS = [
   { id: 'travel', icon: '✈️', label: 'Travel' },
   { id: 'career', icon: '💼', label: 'Career' },

@@ -63,7 +63,7 @@ export default function SettingsPage() {
     }
   };
 
-  const LANGUAGES = ['Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Mandarin', 'Korean', 'Arabic', 'Russian'];
+  const LANGUAGES = ['English', 'Indonesian', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Japanese', 'Mandarin', 'Korean', 'Arabic', 'Russian'];
   const DAILY_GOALS = [5, 10, 15, 20, 30, 45, 60];
 
   return (
