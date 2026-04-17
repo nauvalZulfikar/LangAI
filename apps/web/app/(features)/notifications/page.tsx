@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Check, Flame, Trophy, Zap, Star } from 'lucide-react';
+import { Bell, Check, Flame, Trophy, Zap, Star, BellRing } from 'lucide-react';
 import { formatRelativeDate } from '@/lib/utils';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Notification {
   id: string;
@@ -13,6 +14,27 @@ interface Notification {
   read: boolean;
   createdAt: string;
 }
+
+interface SSENotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  xp?: number;
+  createdAt: string | Date;
+}
+
+interface SSEInitEvent {
+  type: 'init';
+  notifications: SSENotification[];
+  streak: number;
+}
+
+interface SSEPingEvent {
+  type: 'ping';
+}
+
+type SSEEvent = SSEInitEvent | SSEPingEvent;
 
 const notificationIcons = {
   achievement: Trophy,
@@ -30,52 +52,73 @@ const notificationColors = {
   level_up: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
 };
 
-// Demo notifications for the UI
-const DEMO_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'streak',
-    title: '🔥 7-Day Streak!',
-    message: 'Congratulations! You\'ve maintained a 7-day learning streak. Keep it up!',
+function normalizeType(type: string): Notification['type'] {
+  if (type in notificationIcons) return type as Notification['type'];
+  return 'reminder';
+}
+
+function sseToNotification(n: SSENotification): Notification {
+  return {
+    id: n.id,
+    type: normalizeType(n.type),
+    title: n.title,
+    message: n.message,
     read: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'achievement',
-    title: '🏆 Achievement Unlocked',
-    message: 'You\'ve unlocked "First Step" — Complete your first lesson.',
-    read: false,
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'challenge',
-    title: '🎯 Daily Challenge Available',
-    message: 'Today\'s vocabulary challenge is ready. Complete it to earn 60 XP!',
-    read: true,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'level_up',
-    title: '⚡ Level Up!',
-    message: 'You\'ve reached Level 2 — Explorer. Keep learning to unlock more levels!',
-    read: true,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: '5',
-    type: 'reminder',
-    title: '📚 Time to Practice',
-    message: "Don't forget your daily Spanish practice. Your streak is at stake!",
-    read: true,
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-];
+    createdAt: typeof n.createdAt === 'string' ? n.createdAt : new Date(n.createdAt).toISOString(),
+  };
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(DEMO_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLive, setIsLive] = useState(false);
+  const { requestPermission, isSupported, permission } = usePushNotifications();
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const connect = () => {
+      const es = new EventSource('/api/notifications/stream');
+      esRef.current = es;
+
+      es.onopen = () => setIsLive(true);
+
+      es.onmessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data as string) as SSEEvent;
+          if (data.type === 'init') {
+            const mapped = data.notifications.map(sseToNotification);
+            setNotifications(mapped);
+            setIsLive(true);
+          }
+          // ping events are just heartbeats — no UI update needed
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      es.onerror = () => {
+        setIsLive(false);
+        es.close();
+        // Fall back to REST API
+        fetch('/api/notifications')
+          .then((res) => res.json())
+          .then((data: unknown) => {
+            if (Array.isArray(data)) {
+              const typed = data as Notification[];
+              setNotifications(typed);
+            }
+          })
+          .catch(() => {});
+      };
+    };
+
+    connect();
+
+    return () => {
+      esRef.current?.close();
+      esRef.current = null;
+    };
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -87,11 +130,34 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
+  const handleEnablePush = async () => {
+    setIsRequestingPermission(true);
+    await requestPermission();
+    setIsRequestingPermission(false);
+  };
+
+  const pushButtonLabel = () => {
+    if (!isSupported) return null;
+    if (permission === 'granted') return 'Push notifications enabled ✓';
+    if (permission === 'denied') return 'Notifications blocked — enable in browser settings';
+    return 'Enable Push Notifications';
+  };
+
+  const label = pushButtonLabel();
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+            {isLive && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
           {unreadCount > 0 && (
             <p className="text-sm text-primary-500 font-medium mt-0.5">{unreadCount} unread</p>
           )}
@@ -105,6 +171,38 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
+
+      {/* Push notification banner */}
+      {isSupported && permission !== 'granted' && permission !== 'denied' && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between gap-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 rounded-2xl p-4 mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900/50 rounded-xl">
+              <BellRing className="w-5 h-5 text-primary-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white text-sm">Stay on track</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Get push reminders to practice every day</p>
+            </div>
+          </div>
+          <button
+            onClick={handleEnablePush}
+            disabled={isRequestingPermission}
+            className="flex-shrink-0 gradient-primary text-white text-sm font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {isRequestingPermission ? 'Enabling...' : 'Enable'}
+          </button>
+        </motion.div>
+      )}
+
+      {isSupported && label && permission !== 'default' && (
+        <p className={`text-sm font-medium mb-4 ${permission === 'granted' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+          {label}
+        </p>
+      )}
 
       {notifications.length === 0 ? (
         <div className="text-center py-16">

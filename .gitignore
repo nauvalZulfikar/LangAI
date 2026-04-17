@@ -50,3 +50,4 @@ ecosystem.config.js.bak
 # Misc
 *.tsbuildinfo
 next-env.d.ts
+.data/

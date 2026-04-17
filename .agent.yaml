@@ -1,0 +1,97 @@
+agent:
+  id: langai
+  name: "LangAI"
+
+watch:
+  paths:
+    - apps/
+    - packages/
+  ignore:
+    - "node_modules/"
+    - ".git/"
+    - "*.log"
+    - "agent.log"
+    - "agent_queue.json"
+    - ".next/"
+    - "dist/"
+  debounce_ms: 800
+
+orchestrator:
+  url: "${ORCHESTRATOR_URL}"
+  secret: "${AGENT_SECRET}"
+  timeout_sec: 30
+  retry_attempts: 3
+
+llm:
+  provider: openrouter
+  model: deepseek/deepseek-chat-v3-0324
+  fallback_provider: groq
+  fallback_model: llama-3.3-70b-versatile
+  max_tokens: 4096
+  temperature: 0.2
+  context:
+    max_context_lines: 200
+    include_git_diff: true
+    tree_depth: 5
+
+permissions:
+  can_edit_files: true
+  can_run_commands: false
+  can_deploy: false
+  protected_paths:
+    - ".env"
+    - ".env.production"
+    - ".env.agent"
+    - "docker-compose.yml"
+    - "docker-compose.prod.yml"
+    - "secrets/"
+
+# ── Agentic Mode (Plans 1-6) ──
+agentic:
+  enabled: true
+  max_steps: 10
+  token_budget: 50000
+  auto_validate:
+    enabled: false
+    command: ""
+    max_retries: 2
+  allowed_commands:
+    - "npm *"
+    - "npx *"
+    - "node *"
+    - "python3 *"
+    - "pip *"
+    - "git diff*"
+    - "git status"
+    - "git log*"
+    - "ls *"
+    - "cat *"
+    - "head *"
+    - "tail *"
+    - "wc *"
+  blocked_commands:
+    - "rm -rf /*"
+    - "sudo *"
+  allowed_read_paths: []
+  context:
+    recent_window: 3
+    max_context_tokens: 32000
+    compress_strategy: template
+
+# ── Smart Model Routing (Plan 6) ──
+routing:
+  enabled: false
+  default_tier: medium
+  models:
+    simple: groq/llama-3.3-70b-versatile
+    medium: deepseek/deepseek-chat-v3-0324
+    complex: anthropic/claude-sonnet-4
+  auto_escalate: true
+  cost_limit_daily: 5.00
+
+# ── Project Memory (Plan 5) ──
+memory:
+  enabled: true
+  file: .agent-memory.md
+  auto_update: true
+  max_tokens: 2000

@@ -20,8 +20,9 @@ model User {
   xpTotal          Int       @default(0)
   streakCurrent    Int       @default(0)
   streakLongest    Int       @default(0)
-  lastActivityAt   DateTime?
-  dailyGoalMinutes Int       @default(10)
+  lastActivityAt    DateTime?
+  dailyGoalMinutes  Int       @default(10)
+  streakFrozenUntil DateTime?
 
   settings           UserSettings?
   lessonProgress     UserLessonProgress[]
@@ -33,6 +34,9 @@ model User {
   leaderboardEntries Leaderboard[]
   accounts           Account[]
   sessions           Session[]
+  friendships        Friendship[]        @relation("UserFriends")
+  friendOf           Friendship[]        @relation("FriendUsers")
+  pushSubscriptions  PushSubscription[]
 }
 
 model Account {
@@ -76,7 +80,21 @@ model UserSettings {
   reminderTime         String  @default("20:00")
   theme                String  @default("light")
   uiLanguage           String  @default("English")
+  streakFreezeCount    Int     @default(1)
+  inviteCode           String?
   user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendUsers", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
 }
 
 model Lesson {
@@ -207,6 +225,16 @@ model UserDailyChallenge {
   challenge DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, challengeId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Leaderboard {

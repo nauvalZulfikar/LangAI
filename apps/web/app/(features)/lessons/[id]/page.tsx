@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Star, Zap } from 'lucide-react';
+import { X, ChevronRight, Star, Zap, Trophy } from 'lucide-react';
 import { MultipleChoice } from '@/components/exercises/MultipleChoice';
 import { FillInBlank } from '@/components/exercises/FillInBlank';
 import { WordMatch } from '@/components/exercises/WordMatch';
@@ -12,12 +12,22 @@ import { SpeakingPrompt } from '@/components/exercises/SpeakingPrompt';
 import { ReadingPassage } from '@/components/exercises/ReadingPassage';
 import { WritingPrompt } from '@/components/exercises/WritingPrompt';
 import { ListeningComprehension } from '@/components/exercises/ListeningComprehension';
+import { useSession } from 'next-auth/react';
 import { Exercise, LessonWithProgress } from '@/types';
 import { getStarRating } from '@/lib/xp';
+
+interface AchievementData {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  xpReward: number;
+}
 
 export default function LessonPlayerPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [lesson, setLesson] = useState<LessonWithProgress | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
@@ -26,6 +36,7 @@ export default function LessonPlayerPage() {
   const [earnedXP, setEarnedXP] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [newAchievements, setNewAchievements] = useState<AchievementData[]>([]);
 
   useEffect(() => {
     fetch(`/api/lessons/${id}`)
@@ -62,11 +73,23 @@ export default function LessonPlayerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ score, correct, total }),
       });
-      const data = await res.json();
+      const data = await res.json() as { xpEarned?: number };
       setEarnedXP(data.xpEarned ?? 0);
     } catch {
       setEarnedXP(lesson?.xpReward ?? 0);
     }
+
+    // Check for newly unlocked achievements
+    try {
+      const achRes = await fetch('/api/achievements/check', { method: 'POST' });
+      const achData = await achRes.json() as { newlyUnlocked?: AchievementData[] };
+      if (achData.newlyUnlocked && achData.newlyUnlocked.length > 0) {
+        setNewAchievements(achData.newlyUnlocked);
+      }
+    } catch {
+      // Non-critical, ignore errors
+    }
+
     setIsCompleted(true);
   };
 
@@ -140,6 +163,32 @@ export default function LessonPlayerPage() {
             </div>
           </div>
 
+          {/* Achievement notifications */}
+          {newAchievements.length > 0 && (
+            <div className="mb-6 space-y-2">
+              {newAchievements.map((achievement) => (
+                <motion.div
+                  key={achievement.id}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', delay: 0.3 }}
+                  className="flex items-center gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-3 text-left"
+                >
+                  <div className="flex-shrink-0 p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg">
+                    <Trophy className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-yellow-800 dark:text-yellow-300">
+                      Achievement Unlocked! {achievement.icon}
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400 truncate">{achievement.title}</p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-500">+{achievement.xpReward} XP</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => router.push('/lessons')}
@@ -153,6 +202,7 @@ export default function LessonPlayerPage() {
                 setCorrectAnswers(0);
                 setTotalAnswers(0);
                 setIsCompleted(false);
+                setNewAchievements([]);
               }}
               className="flex-1 gradient-primary text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity"
             >
@@ -190,7 +240,7 @@ export default function LessonPlayerPage() {
       case 'writing_prompt':
         return <WritingPrompt key={currentIndex} exercise={ex} onAnswer={handleAnswer} />;
       case 'listening_comprehension':
-        return <ListeningComprehension key={currentIndex} exercise={ex} onAnswer={handleAnswer} />;
+        return <ListeningComprehension key={currentIndex} exercise={ex} onAnswer={handleAnswer} targetLanguage={session?.user?.targetLanguage ?? undefined} />;
       default:
         return (
           <div className="text-center py-8">

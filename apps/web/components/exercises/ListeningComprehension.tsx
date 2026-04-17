@@ -5,12 +5,28 @@ import { motion } from 'framer-motion';
 import { Play, Pause, Volume2, CheckCircle2, XCircle } from 'lucide-react';
 import { ListeningExercise } from '@/types';
 
+const LANGUAGE_TO_BCP47: Record<string, string> = {
+  Spanish: 'es-ES',
+  French: 'fr-FR',
+  German: 'de-DE',
+  Italian: 'it-IT',
+  Portuguese: 'pt-PT',
+  Japanese: 'ja-JP',
+  Mandarin: 'zh-CN',
+  Korean: 'ko-KR',
+  Arabic: 'ar-SA',
+  Russian: 'ru-RU',
+  English: 'en-US',
+  Indonesian: 'id-ID',
+};
+
 interface ListeningComprehensionProps {
   exercise: ListeningExercise;
   onAnswer: (isCorrect: boolean) => void;
+  targetLanguage?: string;
 }
 
-export function ListeningComprehension({ exercise, onAnswer }: ListeningComprehensionProps) {
+export function ListeningComprehension({ exercise, onAnswer, targetLanguage }: ListeningComprehensionProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasListened, setHasListened] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -18,17 +34,38 @@ export function ListeningComprehension({ exercise, onAnswer }: ListeningComprehe
   const [showTranscript, setShowTranscript] = useState(false);
 
   const playAudio = () => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(exercise.transcript);
-      utterance.lang = 'es-ES';
-      utterance.rate = 0.85;
-      utterance.onstart = () => setIsPlaying(true);
-      utterance.onend = () => {
-        setIsPlaying(false);
-        setHasListened(true);
-      };
-      window.speechSynthesis.speak(utterance);
+    if (!('speechSynthesis' in window)) return;
+
+    // Stop any currently playing speech
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
     }
+
+    const utterance = new SpeechSynthesisUtterance(exercise.transcript);
+
+    // Pick the best matching voice for the target language
+    const langCode = LANGUAGE_TO_BCP47[targetLanguage ?? 'Spanish'] ?? 'es-ES';
+    utterance.lang = langCode;
+    utterance.rate = 0.85;
+
+    // Try to select a voice matching the language
+    const voices = window.speechSynthesis.getVoices();
+    const matchingVoice = voices.find((v) => v.lang.startsWith(langCode.split('-')[0]));
+    if (matchingVoice) utterance.voice = matchingVoice;
+
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setHasListened(true);
+    };
+    utterance.onerror = () => {
+      setIsPlaying(false);
+      setHasListened(true);
+    };
+
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleAnswer = (index: number) => {
@@ -51,14 +88,13 @@ export function ListeningComprehension({ exercise, onAnswer }: ListeningComprehe
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={playAudio}
-          disabled={isPlaying}
           className={`flex items-center gap-3 px-6 py-3 rounded-full text-white font-semibold transition-all ${
-            isPlaying ? 'bg-gray-400 cursor-not-allowed' : 'gradient-primary hover:opacity-90'
+            isPlaying ? 'bg-primary-600 hover:bg-primary-700' : 'gradient-primary hover:opacity-90'
           }`}
         >
           {isPlaying ? (
             <>
-              <Pause className="w-5 h-5" /> Playing...
+              <Pause className="w-5 h-5" /> Stop
             </>
           ) : (
             <>

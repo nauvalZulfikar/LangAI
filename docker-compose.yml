@@ -1,0 +1,19 @@
+services:
+  web:
+    image: langai-web
+    container_name: langai-web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://langai_user:langai_secure_2026@shared-postgres:5432/langai
+      NODE_ENV: production
+    ports:
+      - '3002:3002'
+    networks:
+      - default
+      - shared
+
+networks:
+  default:
+  shared:
+    external: true
