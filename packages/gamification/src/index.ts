@@ -101,6 +101,12 @@ export const ACHIEVEMENTS = [
   // Leaderboard Achievements
   { id: 'leaderboard-top10', title: 'Rising Star', description: 'Reach top 10 on the leaderboard', icon: '⭐', xpReward: 300, condition: { type: 'leaderboard_rank', rank: 10 } },
   { id: 'leaderboard-1', title: 'Champion', description: 'Reach #1 on the leaderboard', icon: '🥇', xpReward: 1000, condition: { type: 'leaderboard_rank', rank: 1 } },
+  // Goal Achievements
+  { id: 'first-goal', title: 'Goal Setter', description: 'Complete your first learning goal', icon: '🎯', xpReward: 150, condition: { type: 'goals_completed', count: 1 } },
+  { id: 'goals-3', title: 'Goal Crusher', description: 'Complete 3 learning goals', icon: '🏅', xpReward: 300, condition: { type: 'goals_completed', count: 3 } },
+  { id: 'goals-10', title: 'Goal Master', description: 'Complete 10 learning goals', icon: '🏆', xpReward: 750, condition: { type: 'goals_completed', count: 10 } },
+  { id: 'goal-streak-3', title: 'Hat Trick', description: 'Complete 3 goals in a row', icon: '🔥', xpReward: 500, condition: { type: 'goal_streak', count: 3 } },
+  { id: 'mastery-perfect', title: 'Perfect Mastery', description: 'Score 100% on a mastery test', icon: '💯', xpReward: 400, condition: { type: 'mastery_perfect', count: 1 } },
 ] as const;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id'];
@@ -117,6 +123,9 @@ export function checkAchievementUnlock(
     perfectLessons: number;
     dailyChallenges: number;
     leaderboardRank: number | null;
+    goalsCompleted?: number;
+    goalStreak?: number;
+    masteryPerfect?: number;
   }
 ): boolean {
   const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
@@ -133,6 +142,9 @@ export function checkAchievementUnlock(
     case 'perfect_lesson': return stats.perfectLessons >= c.count;
     case 'daily_challenges': return stats.dailyChallenges >= c.count;
     case 'leaderboard_rank': return stats.leaderboardRank !== null && stats.leaderboardRank <= c.rank;
+    case 'goals_completed': return (stats.goalsCompleted ?? 0) >= c.count;
+    case 'goal_streak': return (stats.goalStreak ?? 0) >= c.count;
+    case 'mastery_perfect': return (stats.masteryPerfect ?? 0) >= c.count;
     default: return false;
   }
 }

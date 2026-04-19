@@ -9,7 +9,7 @@ export async function POST() {
 
   const userId = session.user.id;
 
-  const [user, completedLessons, flashcardsReviewed, speakingSessions, writingEntries, userAchievements, achievements] =
+  const [user, completedLessons, flashcardsReviewed, speakingSessions, writingEntries, userAchievements, achievements, goalsCompleted, goalMaxSequence, masteryPerfect] =
     await Promise.all([
       db.user.findUnique({ where: { id: userId }, select: { xpTotal: true, streakCurrent: true } }),
       db.userLessonProgress.count({ where: { userId, status: 'COMPLETED' } }),
@@ -18,6 +18,15 @@ export async function POST() {
       db.writingEntry.count({ where: { userId } }),
       db.userAchievement.findMany({ where: { userId }, select: { achievementId: true } }),
       db.achievement.findMany(),
+      db.goalCycle.count({ where: { userId, status: 'COMPLETED' } }),
+      db.goalCycle.findFirst({
+        where: { userId, status: 'COMPLETED' },
+        orderBy: { sequenceNumber: 'desc' },
+        select: { sequenceNumber: true },
+      }),
+      db.goalMasteryTest.count({
+        where: { goal: { userId }, score: 100 },
+      }),
     ]);
 
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -50,6 +59,15 @@ export async function POST() {
         break;
       case 'writing_entries':
         shouldUnlock = writingEntries >= n('count');
+        break;
+      case 'goals_completed':
+        shouldUnlock = goalsCompleted >= n('count');
+        break;
+      case 'goal_streak':
+        shouldUnlock = (goalMaxSequence?.sequenceNumber ?? 0) >= n('count');
+        break;
+      case 'mastery_perfect':
+        shouldUnlock = masteryPerfect >= n('count');
         break;
     }
 

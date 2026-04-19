@@ -11,6 +11,7 @@ import { WeeklyXPChart } from '@/components/dashboard/WeeklyXPChart';
 import { RecentBadges } from '@/components/dashboard/RecentBadges';
 import { LeaderboardPreview } from '@/components/dashboard/LeaderboardPreview';
 import { getWeekStart } from '@/lib/utils';
+import { GoalDashboardWidget } from '@/components/goals/GoalDashboardWidget';
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -18,7 +19,7 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  const [user, recentProgress, achievements, leaderboard, todayChallenge, userChallenge] = await Promise.all([
+  const [user, recentProgress, achievements, leaderboard, todayChallenge, userChallenge, activeGoalRaw, suggestedGoalRaw] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
       select: {
@@ -57,6 +58,14 @@ export default async function DashboardPage() {
         userId,
         completedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
       },
+    }),
+    db.goalCycle.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      include: { assignedLessons: true },
+    }),
+    db.goalCycle.findFirst({
+      where: { userId, status: 'SUGGESTED' },
+      orderBy: { createdAt: 'desc' },
     }),
   ]);
 
@@ -116,6 +125,59 @@ export default async function DashboardPage() {
     isCurrentUser: entry.user.id === userId,
   }));
 
+  // Format goal data for widget
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let activeGoal: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let suggestedGoal: any = null;
+
+  if (activeGoalRaw) {
+    const gl = activeGoalRaw.assignedLessons;
+    const totalLessons = gl.length;
+    const completedGoalLessons = gl.filter((l) => l.completedAt !== null).length;
+    const now = new Date();
+    const sAt = activeGoalRaw.startedAt ? new Date(activeGoalRaw.startedAt) : now;
+    const dAt = activeGoalRaw.deadlineAt ? new Date(activeGoalRaw.deadlineAt) : now;
+    const daysElapsed = Math.max(0, Math.floor((now.getTime() - sAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const daysRemaining = Math.max(0, Math.floor((dAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    const percentComplete = totalLessons > 0 ? Math.round((completedGoalLessons / totalLessons) * 100) : 0;
+    activeGoal = {
+      id: activeGoalRaw.id,
+      title: activeGoalRaw.title,
+      description: activeGoalRaw.description,
+      topic: activeGoalRaw.topic,
+      cefrLevel: activeGoalRaw.cefrLevel,
+      skillFocus: JSON.parse(activeGoalRaw.skillFocus),
+      status: activeGoalRaw.status,
+      durationDays: activeGoalRaw.durationDays,
+      startedAt: activeGoalRaw.startedAt?.toISOString() ?? null,
+      deadlineAt: activeGoalRaw.deadlineAt?.toISOString() ?? null,
+      completedAt: activeGoalRaw.completedAt?.toISOString() ?? null,
+      xpMultiplier: activeGoalRaw.xpMultiplier,
+      passThreshold: activeGoalRaw.passThreshold,
+      sequenceNumber: activeGoalRaw.sequenceNumber,
+      progress: { totalLessons, completedLessons: completedGoalLessons, daysElapsed, daysRemaining, percentComplete },
+    };
+  } else if (suggestedGoalRaw) {
+    suggestedGoal = {
+      id: suggestedGoalRaw.id,
+      title: suggestedGoalRaw.title,
+      description: suggestedGoalRaw.description,
+      topic: suggestedGoalRaw.topic,
+      cefrLevel: suggestedGoalRaw.cefrLevel,
+      skillFocus: JSON.parse(suggestedGoalRaw.skillFocus),
+      status: suggestedGoalRaw.status,
+      durationDays: suggestedGoalRaw.durationDays,
+      xpMultiplier: suggestedGoalRaw.xpMultiplier,
+      passThreshold: suggestedGoalRaw.passThreshold,
+      sequenceNumber: suggestedGoalRaw.sequenceNumber,
+      startedAt: null,
+      deadlineAt: null,
+      completedAt: null,
+      progress: { totalLessons: 0, completedLessons: 0, daysElapsed: 0, daysRemaining: 0, percentComplete: 0 },
+    };
+  }
+
   const recentBadges = achievements.map((a) => ({
     id: a.id,
     title: a.achievement.title,
@@ -139,6 +201,7 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <DailyStreakBanner streak={user.streakCurrent} longestStreak={user.streakLongest} />
           <DailyGoalProgress minutesCompleted={0} dailyGoalMinutes={user.dailyGoalMinutes} />
+          <GoalDashboardWidget activeGoal={activeGoal} suggestedGoal={suggestedGoal} />
           <ContinueLearningCard lesson={nextLesson} />
           <DailyChallenge challenge={challengeData} />
           <WeeklyXPChart data={weeklyXP} />

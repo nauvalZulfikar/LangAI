@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, CreditCard, Mic, PenLine, BarChart2, Trophy, Bell, Settings, Flame, Zap } from 'lucide-react';
+import { Home, BookOpen, CreditCard, Mic, PenLine, BarChart2, Trophy, Bell, Settings, Flame, Zap, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useUserStore } from '@/stores/userStore';
@@ -10,6 +10,7 @@ import { getLevelFromXP, getXPProgress } from '@/lib/xp';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
+  { href: '/goals', icon: Target, label: 'Goals' },
   { href: '/lessons', icon: BookOpen, label: 'Lessons' },
   { href: '/flashcards', icon: CreditCard, label: 'Flashcards' },
   { href: '/speaking', icon: Mic, label: 'Speaking' },

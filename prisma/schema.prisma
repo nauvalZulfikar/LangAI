@@ -37,6 +37,7 @@ model User {
   friendships        Friendship[]        @relation("UserFriends")
   friendOf           Friendship[]        @relation("FriendUsers")
   pushSubscriptions  PushSubscription[]
+  goalCycles         GoalCycle[]
 }
 
 model Account {
@@ -111,6 +112,7 @@ model Lesson {
 
   flashcards   Flashcard[]
   userProgress UserLessonProgress[]
+  goalLessons  GoalLesson[]
 }
 
 model UserLessonProgress {
@@ -247,4 +249,79 @@ model Leaderboard {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
+}
+
+model GoalCycle {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String
+  description     String
+  topic           String
+  cefrLevel       String
+  skillFocus      String
+  status          String    @default("SUGGESTED")
+  durationDays    Int
+  startedAt       DateTime?
+  deadlineAt      DateTime?
+  completedAt     DateTime?
+  xpMultiplier    Float     @default(1.5)
+  xpBonusEarned   Int       @default(0)
+  passThreshold   Int       @default(70)
+  sequenceNumber  Int       @default(0)
+  aiContext       String
+  createdAt       DateTime  @default(now())
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyPlans       GoalDailyPlan[]
+  assignedLessons  GoalLesson[]
+  masteryTests     GoalMasteryTest[]
+
+  @@index([userId, status])
+}
+
+model GoalLesson {
+  id          String    @id @default(cuid())
+  goalId      String
+  lessonId    String
+  dayNumber   Int
+  isRequired  Boolean   @default(true)
+  completedAt DateTime?
+
+  goal   GoalCycle @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  lesson Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, lessonId])
+}
+
+model GoalDailyPlan {
+  id            String   @id @default(cuid())
+  goalId        String
+  dayNumber     Int
+  date          DateTime
+  lessonIds     String
+  rationale     String
+  isCompleted   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  goal GoalCycle @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, dayNumber])
+}
+
+model GoalMasteryTest {
+  id              String    @id @default(cuid())
+  goalId          String
+  attempt         Int       @default(1)
+  testCategories  String
+  questions       String
+  answers         String?
+  score           Int?
+  passed          Boolean?
+  remedialPlan    String?
+  takenAt         DateTime?
+  createdAt       DateTime  @default(now())
+
+  goal GoalCycle @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }

@@ -242,6 +242,68 @@ export interface Notification {
   data?: Record<string, unknown>;
 }
 
+export type GoalStatus = 'SUGGESTED' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+
+export type TestCategory =
+  | 'Vocabulary Recognition'
+  | 'Vocabulary Production'
+  | 'Grammar Accuracy'
+  | 'Reading Comprehension'
+  | 'Listening Comprehension'
+  | 'Spoken Production'
+  | 'Written Production'
+  | 'Pragmatic/Contextual Use'
+  | 'Discourse Coherence'
+  | 'Transfer / Application';
+
+export interface GoalCycleData {
+  id: string;
+  title: string;
+  description: string;
+  topic: string;
+  cefrLevel: CEFRLevel;
+  skillFocus: LessonType[];
+  status: GoalStatus;
+  durationDays: number;
+  startedAt: string | null;
+  deadlineAt: string | null;
+  completedAt: string | null;
+  xpMultiplier: number;
+  passThreshold: number;
+  sequenceNumber: number;
+  progress: {
+    totalLessons: number;
+    completedLessons: number;
+    daysElapsed: number;
+    daysRemaining: number;
+    percentComplete: number;
+  };
+}
+
+export interface GoalDailyPlanData {
+  id: string;
+  dayNumber: number;
+  date: string;
+  lessons: Array<{
+    id: string;
+    title: string;
+    type: LessonType;
+    estimatedMinutes: number;
+    completed: boolean;
+  }>;
+  rationale: string;
+  isCompleted: boolean;
+}
+
+export interface GoalMasteryTestData {
+  id: string;
+  attempt: number;
+  testCategories: TestCategory[];
+  questions: Exercise[];
+  score: number | null;
+  passed: boolean | null;
+}
+
 // Session user extension
 declare module 'next-auth' {
   interface Session {

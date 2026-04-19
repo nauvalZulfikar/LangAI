@@ -99,12 +99,43 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     }
 
+    // Check if lesson is part of active goal
+    let goalReadyForTest = false;
+    let goalId: string | null = null;
+
+    const goalLesson = await db.goalLesson.findFirst({
+      where: {
+        lessonId,
+        goal: { userId, status: 'ACTIVE' },
+        completedAt: null,
+      },
+    });
+
+    if (goalLesson) {
+      await db.goalLesson.update({
+        where: { id: goalLesson.id },
+        data: { completedAt: new Date() },
+      });
+
+      // Check if all goal lessons are done
+      const remaining = await db.goalLesson.count({
+        where: { goalId: goalLesson.goalId, completedAt: null },
+      });
+
+      if (remaining === 0) {
+        goalReadyForTest = true;
+        goalId = goalLesson.goalId;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       score,
       stars,
       xpEarned,
       progress: updatedProgress,
+      goalReadyForTest,
+      goalId,
     });
   } catch (error) {
     console.error('Lesson complete error:', error);

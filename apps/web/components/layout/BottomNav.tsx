@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, CreditCard, Mic, PenLine, BarChart2, Trophy } from 'lucide-react';
+import { Home, BookOpen, CreditCard, Mic, PenLine, BarChart2, Trophy, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
+  { href: '/goals', icon: Target, label: 'Goals' },
   { href: '/lessons', icon: BookOpen, label: 'Lessons' },
   { href: '/flashcards', icon: CreditCard, label: 'Cards' },
   { href: '/speaking', icon: Mic, label: 'Speak' },
